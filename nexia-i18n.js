@@ -1,102 +1,117 @@
+// FIX v23: linha removida — definia redirect_after_login='cortex' globalmente
+// causando redirecionamento incorreto após login do master admin.
 /**
- * NEXIA OS — CORE CONFIGURATION ENGINE v6.0
- * Fixes: enablePersistence → cache API (no deprecation warning)
- * Firebase Real · Multi-Tenancy · Zero mocks
+ * ✦ NEXIA OS — Universal Splash Screen + i18n v1.0
+ * Injeta automaticamente em qualquer página que inclua este script.
+ * Uso: <script src="../core/nexia-splash.js"></script>
  */
-
-const NEXIA_CONFIG = {
-    firebase: {
-        apiKey:            "AIzaSyC9L592zKSUjx-YglmbGpxjv2hsXm_gbBM",
-        authDomain:        "nexia-c8710.firebaseapp.com",
-        projectId:         "nexia-c8710",
-        storageBucket:     "nexia-c8710.firebasestorage.app",
-        messagingSenderId: "623044447905",
-        appId:             "1:623044447905:web:13f70e1584fb0fcf8d2ae0",
-        measurementId:     "G-KM6JT7L05J"
+(function(){
+  // ── i18n ──────────────────────────────────────────────────
+  const TRANSLATIONS = {
+    'pt-BR': {
+      splash_loading: 'Inicializando',
+      nav_home: 'Início', nav_about: 'Sobre', nav_contact: 'Contato',
+      nav_register: 'Inscrever-se', nav_login: 'Entrar',
+      btn_cta: 'Saiba Mais', btn_register: 'Quero Participar',
+      footer_rights: 'Todos os direitos reservados',
     },
-    tenants: {
-        "MASTER":       { id:"NEXIA_MASTER",   name:"NEXIA CORPORATION",          theme:"dark", modules:["all"] },
-        "VIAJANTE_PRO": { id:"VP_AGENCIA_01",  name:"Viajante Pro Oficial",        theme:"dark", modules:["turismo","financeiro","logistica"] },
-        "CES":          { id:"CES_2027_BR",    name:"CES Brasil 2027",             theme:"dark", modules:["eventos","matchmaking","compliance"] },
-        "BEZSAN":       { id:"BEZSAN_01",      name:"Bezsan Leilões",              theme:"dark", modules:["leiloes","financeiro","investimentos"] }
+    'en': {
+      splash_loading: 'Initializing',
+      nav_home: 'Home', nav_about: 'About', nav_contact: 'Contact',
+      nav_register: 'Register', nav_login: 'Login',
+      btn_cta: 'Learn More', btn_register: 'I Want to Join',
+      footer_rights: 'All rights reserved',
     },
-    settings: { sessionTimeout:3600, forceMFA:false, allowDebug:true, version:"6.0.0" }
-};
-
-class NexiaCore {
-    constructor() {
-        this.app = null; this.db = null; this.auth = null; this.rtdb = null;
-        this.currentTenant = null; this._ready = false; this._readyCallbacks = [];
-        this._init();
+    'es': {
+      splash_loading: 'Iniciando',
+      nav_home: 'Inicio', nav_about: 'Nosotros', nav_contact: 'Contacto',
+      nav_register: 'Inscribirse', nav_login: 'Entrar',
+      btn_cta: 'Más Información', btn_register: 'Quiero Participar',
+      footer_rights: 'Todos los derechos reservados',
     }
+  };
 
-    _init() {
-        this.log(`NEXIA OS v${NEXIA_CONFIG.settings.version} INICIANDO...`, 'info');
-        const tryInit = () => {
-            if (typeof firebase === 'undefined') { setTimeout(tryInit, 100); return; }
-            try {
-                this.app  = firebase.apps.length ? firebase.app() : firebase.initializeApp(NEXIA_CONFIG.firebase);
-                // Auth lazy: só inicializa se o SDK auth estiver disponível
-                try { this.auth = firebase.auth ? firebase.auth() : null; } catch(e) { this.auth = null; }
+  // Detecta idioma salvo ou do browser
+  function detectLang() {
+    return localStorage.getItem('nexia_lang') ||
+      (navigator.language || 'pt-BR').substring(0,2) === 'en' ? 'en' :
+      (navigator.language || 'pt-BR').substring(0,2) === 'es' ? 'es' : 'pt-BR';
+  }
 
-                // FIX: Use experimentalForceLongPolling + settings instead of deprecated enablePersistence
-                try {
-                    this.db = firebase.firestore();
-                    // Modern approach: just use memory cache, no deprecated enablePersistence call
-                    // onSnapshot handles reconnection automatically
-                } catch(e) {
-                    this.db = firebase.firestore();
-                }
+  window.NEXIA_LANG = detectLang();
+  window.t = function(key) {
+    return (TRANSLATIONS[window.NEXIA_LANG] || TRANSLATIONS['pt-BR'])[key] || key;
+  };
+  window.setLang = function(lang) {
+    window.NEXIA_LANG = lang;
+    localStorage.setItem('nexia_lang', lang);
+    // Re-render i18n elements
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = window.t(key);
+      else el.textContent = window.t(key);
+    });
+  };
 
-                this.detectTenantContext();
-                this._ready = true;
-                this._readyCallbacks.forEach(cb => { try { cb(); } catch(e) {} });
-                this.log(`Firebase online · nexia-c8710 · Tenant: ${this.currentTenant?.name}`, 'ok');
-            } catch (error) {
-                this.log(`ERRO CRÍTICO: ${error.message}`, 'err');
-            }
-        };
-        tryInit();
-    }
+  // ── Splash Injection ──────────────────────────────────────
+  const style = document.createElement('style');
+  style.textContent = `
+    #_nexia-splash{position:fixed;inset:0;background:#07090E;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;transition:opacity .6s .2s,transform .5s .2s;font-family:'Inter',sans-serif}
+    #_nexia-splash.hide{opacity:0;transform:scale(1.06);pointer-events:none}
+    ._nx-hex{width:58px;height:58px;background:linear-gradient(135deg,rgb(184,134,11),rgb(218,165,32));border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#fff;animation:_nx-pulse 1s ease infinite}
+    @keyframes _nx-pulse{0%,100%{box-shadow:0 0 0 0 rgba(218,165,32,.4)}50%{box-shadow:0 0 0 14px rgba(218,165,32,0)}}
+    ._nx-title{font-size:18px;font-weight:700;color:#f8fafc;letter-spacing:.3px}
+    ._nx-sub{font-size:11px;color:rgb(218,165,32);letter-spacing:2px;text-transform:uppercase}
+    ._nx-bar{width:120px;height:2px;background:rgba(255,255,255,.08);border-radius:1px;margin-top:4px;overflow:hidden}
+    ._nx-progress{height:100%;background:linear-gradient(90deg,rgb(218,165,32),rgba(218,165,32,.4));border-radius:1px;animation:_nx-load 1s ease-out forwards}
+    @keyframes _nx-load{from{width:0}to{width:100%}}
+    /* Lang switcher */
+    ._nx-lang{position:fixed;top:16px;right:16px;z-index:100;display:flex;gap:6px}
+    ._nx-lang button{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(226,232,240,.6);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s}
+    ._nx-lang button:hover,._nx-lang button.active{background:rgba(218,165,32,.15);border-color:rgba(218,165,32,.3);color:rgb(218,165,32)}
+  `;
+  document.head.appendChild(style);
 
-    onReady(cb) { if (this._ready) { cb(); } else { this._readyCallbacks.push(cb); } }
+  // Create splash
+  const splash = document.createElement('div');
+  splash.id = '_nexia-splash';
+  splash.innerHTML = `<div class="_nx-hex">N</div><div class="_nx-title">NEXIA OS</div><div class="_nx-sub">Iniciando sistema</div><div class="_nx-bar"><div class="_nx-progress"></div></div>`;
+  document.body.appendChild(splash);
 
-    detectTenantContext() {
-        const p = window.location.pathname.toLowerCase();
-        if      (p.includes('/nexia/') || p.includes('nexia-master'))  this.currentTenant = NEXIA_CONFIG.tenants.MASTER;
-        else if (p.includes('/viajante-pro/') || p.includes('vp-'))    this.currentTenant = NEXIA_CONFIG.tenants.VIAJANTE_PRO;
-        else if (p.includes('/ces/') || p.includes('ces-'))            this.currentTenant = NEXIA_CONFIG.tenants.CES;
-        else if (p.includes('/bezsan/') || p.includes('bezsan-'))      this.currentTenant = NEXIA_CONFIG.tenants.BEZSAN;
-        else                                                            this.currentTenant = { id:'GUEST', name:'Visitante', modules:[] };
-    }
+  // Create lang switcher
+  const langBar = document.createElement('div');
+  langBar.className = '_nx-lang';
+  langBar.innerHTML = `<button onclick="setLang('pt-BR')">PT</button><button onclick="setLang('en')">EN</button><button onclick="setLang('es')">ES</button>`;
+  document.body.appendChild(langBar);
 
-    getCollection(col) {
-        const tid = this.currentTenant?.id;
-        if (!tid || tid === 'GUEST') return this.db.collection(col);
-        return this.db.collection('tenants').doc(tid).collection(col);
-    }
+  // Update lang buttons on change
+  const origSetLang = window.setLang;
+  window.setLang = function(lang){
+    origSetLang(lang);
+    document.querySelectorAll('._nx-lang button').forEach((b,i)=>{
+      b.classList.toggle('active', ['pt-BR','en','es'][i]===lang);
+    });
+  };
 
-    getTenantConfigRef(tenantId) {
-        const tid = tenantId || this.currentTenant?.id;
-        return this.db.collection('tenants').doc(tid).collection('config').doc('brand');
-    }
+  // Auto-hide after 1.2s
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      splash.classList.add('hide');
+      setTimeout(()=>{ if(splash.parentNode) splash.parentNode.removeChild(splash); }, 700);
+    }, 1200);
+  });
+  // Fallback: hide after 2.5s regardless
+  setTimeout(function(){
+    splash.classList.add('hide');
+  }, 2500);
 
-    log(msg, type='info') {
-        if (!NEXIA_CONFIG.settings.allowDebug) return;
-        const c = { info:'#00e5ff', ok:'#00d68f', warn:'#ffaa00', err:'#ff3d71' };
-        console.log(`%c[NEXIA ${type.toUpperCase()}] %c${msg}`, `color:${c[type]||'#00e5ff'};font-weight:bold`, 'color:#c4d4ee');
-    }
-}
+  // Apply i18n on DOM ready
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('[data-i18n]').forEach(el=>{
+      const key=el.getAttribute('data-i18n');
+      if(el.tagName==='INPUT'||el.tagName==='TEXTAREA') el.placeholder=window.t(key);
+      else el.textContent=window.t(key);
+    });
+  });
 
-const NEXIA = new NexiaCore();
-window.NEXIA = NEXIA;
-
-// Sanitizer
-window.NEXIA.sanitize = s => { if (typeof s !== 'string') return s; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-
-// NEXIA Shield anti-XSS
-const _origLog = console.log;
-console.log = function(...a) {
-    if (typeof a[0] === 'string' && a[0].includes('<script>')) { _origLog('%c[NEXIA SHIELD] XSS blocked!','color:red;font-weight:bold'); return; }
-    _origLog.apply(console, a);
-};
+})();

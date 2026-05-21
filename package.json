@@ -1,0 +1,24 @@
+{
+  "name": "nexia-os",
+  "version": "6.0.0",
+  "description": "NEXIA OS — Multi-tenant SaaS Platform. Sovereign. Zero mocks. Firebase + Netlify.",
+  "private": true,
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Static deploy — no build step required'",
+    "deploy": "netlify deploy --prod",
+    "deploy:preview": "netlify deploy"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["saas", "multi-tenant", "firebase", "netlify", "nexia"],
+  "license": "UNLICENSED"
+}
